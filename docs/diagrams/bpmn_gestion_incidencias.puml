@@ -1,0 +1,79 @@
+@startuml bpmn_gestion_incidencias
+title Proceso de Gestión y Escalamiento de Incidencias de TI (BPMN 2.0) - OGTI Entidad Pública
+
+skinparam monochrome false
+skinparam roundcorner 10
+skinparam defaultFontName Arial
+skinparam defaultFontSize 12
+
+|#E8F4F8|Usuario Solicitante|
+start
+:Detectar falla o requerimiento tecnológico;
+:Registrar solicitud de incidencia (Canal SPOC);
+
+|#FFF2CC|Mesa de Ayuda (Soporte Nivel 1 - N1)|
+:Recepción y registro de ticket;
+note right
+  **Factory Method**
+  Clasifica categoría e inicializa
+  SLA contractual (dueAt)
+end note
+
+:Diagnóstico preliminar de incidencia;
+
+if (¿Es solucionable en primer nivel (N1)?) then (Sí)
+  :Ejecutar solución inmediata (N1);
+  :Registrar acciones tomadas;
+  |#E8F4F8|Usuario Solicitante|
+  :Confirmar restablecimiento de servicio;
+  stop
+else (No)
+  :Determinar necesidad de escalamiento técnico;
+endif
+
+|#FFE6CC|Motor de Monitoreo de SLA (Sistema)|
+fork
+  |#FFE6CC|Motor de Monitoreo de SLA (Sistema)|
+  :Monitorear vencimiento de SLA;
+  if (¿SLA próximo a vencer o vencido?) then (Sí)
+    :Generar evento de infracción SLA;
+    note right
+      **Observer Pattern**
+      Notifica a observadores
+      (Log / Email / Webhook)
+    end note
+    :Disparar escalamiento automático;
+  else (No)
+    :Mantener monitoreo activo;
+  endif
+fork again
+  |#E1D5E7|Soporte Técnico de Campo (Nivel 2 - N2)|
+  :Recibir ticket escalado a N2;
+  note right
+    **Chain of Responsibility**
+    Handler N2 evalúa competencia
+  end note
+  :Inspección técnica e intervención de hardware/software;
+  if (¿Resuelto en N2 dentro del SLA?) then (Sí)
+    :Documentar resolución técnica;
+  else (No)
+    |#D5E8D4|Soporte Especializado (Nivel 3 - N3)|
+    :Recibir ticket escalado a N3;
+    note right
+      **Chain of Responsibility**
+      Handler N3 (DBA / Redes / Vendor)
+    end note
+    :Análisis de causa raíz y remediación especializada;
+    :Cierre técnico de incidencia;
+  endif
+end fork
+
+|#FFF2CC|Mesa de Ayuda (Soporte Nivel 1 - N1)|
+:Validar resolución integral y cambiar estado a RESUELTO;
+
+|#E8F4F8|Usuario Solicitante|
+:Recepción de notificación de cierre;
+:Verificar operatividad y evaluar conformidad;
+stop
+
+@enduml

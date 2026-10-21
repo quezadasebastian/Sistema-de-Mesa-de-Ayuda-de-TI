@@ -1,0 +1,247 @@
+@startuml clases_diseno
+title Diagrama de Clases de Diseño (UML 2.5.1) - Microservicio Mesa de Ayuda TI
+
+skinparam classAttributeIconSize 0
+skinparam monochrome false
+skinparam roundcorner 6
+skinparam defaultFontName Arial
+skinparam defaultFontSize 11
+skinparam packageStyle frame
+
+package "Presentation Layer" {
+  class TicketController {
+    - ticketService: TicketService
+    + TicketController(ticketService: TicketService)
+    + createTicket(req: HttpRequest, res: HttpResponse): HttpResponse
+    + verifyAndEscalateSla(req: HttpRequest, res: HttpResponse): HttpResponse
+    + getTicketById(req: HttpRequest, res: HttpResponse): HttpResponse
+  }
+
+  class CreateTicketDTO {
+    + title: string
+    + description: string
+    + category: string
+    + impact: string
+    + urgency: string
+    + requesterId: string
+  }
+}
+
+package "Application Layer" {
+  class TicketService {
+    - ticketRepository: ITicketRepository
+    - slaNotifier: ISlaSubject
+    - escalationChain: SupportLevelHandler
+    + TicketService(repo: ITicketRepository, notifier: ISlaSubject, chain: SupportLevelHandler)
+    + createTicket(dto: CreateTicketDTO): Ticket
+    + verifyAndEscalateTicket(ticketId: string): EscalationResult
+    + getTicket(ticketId: string): Ticket
+  }
+
+  class EscalationResult {
+    + ticketId: string
+    + previousLevel: SupportLevel
+    + newLevel: SupportLevel
+    + status: string
+    + message: string
+    + escalatedAt: Date
+  }
+}
+
+package "Domain Layer - Entities & Values" {
+  enum TicketCategory {
+    HARDWARE
+    SOFTWARE
+    NETWORK
+    ACCESS
+  }
+
+  enum PriorityLevel {
+    P1_CRITICAL
+    P2_HIGH
+    P3_MEDIUM
+    P4_LOW
+  }
+
+  enum TicketStatus {
+    OPEN
+    IN_PROGRESS
+    ESCALATED
+    RESOLVED
+    CLOSED
+  }
+
+  enum SupportLevel {
+    LEVEL_1
+    LEVEL_2
+    LEVEL_3
+  }
+
+  class EscalationRecord {
+    + id: string
+    + fromLevel: SupportLevel
+    + toLevel: SupportLevel
+    + reason: string
+    + timestamp: Date
+  }
+
+  abstract class Ticket {
+    - id: string
+    - title: string
+    - description: string
+    - category: TicketCategory
+    - priority: PriorityLevel
+    - status: TicketStatus
+    - currentLevel: SupportLevel
+    - createdAt: Date
+    - dueAt: Date
+    - escalationHistory: EscalationRecord[]
+    + Ticket(id: string, title: string, desc: string, cat: TicketCategory, prio: PriorityLevel, slaHours: number)
+    + getId(): string
+    + getTitle(): string
+    + getCategory(): TicketCategory
+    + getPriority(): PriorityLevel
+    + getStatus(): TicketStatus
+    + getCurrentLevel(): SupportLevel
+    + getCreatedAt(): Date
+    + getDueAt(): Date
+    + getEscalationHistory(): EscalationRecord[]
+    + isSlaBreached(currentTime: Date): boolean
+    + escalate(targetLevel: SupportLevel, reason: string): void
+    + resolve(): void
+    + {abstract} calculateDefaultSlaHours(): number
+  }
+
+  class HardwareTicket extends Ticket {
+    + calculateDefaultSlaHours(): number
+  }
+
+  class SoftwareTicket extends Ticket {
+    + calculateDefaultSlaHours(): number
+  }
+
+  class NetworkTicket extends Ticket {
+    + calculateDefaultSlaHours(): number
+  }
+
+  class AccessTicket extends Ticket {
+    + calculateDefaultSlaHours(): number
+  }
+}
+
+package "Domain Layer - Patrón Factory Method (GoF)" {
+  abstract class TicketFactory {
+    + createTicket(data: CreateTicketData): Ticket
+    # {abstract} buildTicket(data: CreateTicketData, priority: PriorityLevel): Ticket
+    - resolvePriority(impact: string, urgency: string): PriorityLevel
+  }
+
+  class HardwareTicketFactory extends TicketFactory {
+    # buildTicket(data: CreateTicketData, priority: PriorityLevel): Ticket
+  }
+
+  class SoftwareTicketFactory extends TicketFactory {
+    # buildTicket(data: CreateTicketData, priority: PriorityLevel): Ticket
+  }
+
+  class NetworkTicketFactory extends TicketFactory {
+    # buildTicket(data: CreateTicketData, priority: PriorityLevel): Ticket
+  }
+
+  class AccessTicketFactory extends TicketFactory {
+    # buildTicket(data: CreateTicketData, priority: PriorityLevel): Ticket
+  }
+}
+
+package "Domain Layer - Patrón Chain of Responsibility (GoF)" {
+  abstract class SupportLevelHandler {
+    # nextHandler: SupportLevelHandler
+    + setNext(handler: SupportLevelHandler): SupportLevelHandler
+    + handle(ticket: Ticket, reason: string): EscalationResult
+    # {abstract} processEscalation(ticket: Ticket, reason: string): EscalationResult
+    # {abstract} canHandle(ticket: Ticket): boolean
+  }
+
+  class L1SupportHandler extends SupportLevelHandler {
+    # processEscalation(ticket: Ticket, reason: string): EscalationResult
+    # canHandle(ticket: Ticket): boolean
+  }
+
+  class L2SupportHandler extends SupportLevelHandler {
+    # processEscalation(ticket: Ticket, reason: string): EscalationResult
+    # canHandle(ticket: Ticket): boolean
+  }
+
+  class L3SupportHandler extends SupportLevelHandler {
+    # processEscalation(ticket: Ticket, reason: string): EscalationResult
+    # canHandle(ticket: Ticket): boolean
+  }
+}
+
+package "Domain Layer - Patrón Observer (GoF)" {
+  class SlaBreachEvent {
+    + ticketId: string
+    + category: TicketCategory
+    + priority: PriorityLevel
+    + dueAt: Date
+    + breachedAt: Date
+    + breachReason: string
+  }
+
+  interface ISlaObserver {
+    + onSlaBreached(event: SlaBreachEvent): void
+  }
+
+  interface ISlaSubject {
+    + attach(observer: ISlaObserver): void
+    + detach(observer: ISlaObserver): void
+    + notify(event: SlaBreachEvent): void
+  }
+
+  class SlaBreachNotifier implements ISlaSubject {
+    - observers: ISlaObserver[]
+    + attach(observer: ISlaObserver): void
+    + detach(observer: ISlaObserver): void
+    + notify(event: SlaBreachEvent): void
+  }
+}
+
+package "Domain / Infrastructure - Repositorio" {
+  interface ITicketRepository {
+    + save(ticket: Ticket): void
+    + findById(id: string): Ticket
+    + findAll(): Ticket[]
+    + update(ticket: Ticket): void
+  }
+
+  class InMemoryTicketRepository implements ITicketRepository {
+    - tickets: Map<string, Ticket>
+    + save(ticket: Ticket): void
+    + findById(id: string): Ticket
+    + findAll(): Ticket[]
+    + update(ticket: Ticket): void
+  }
+
+  class ConsoleLogObserver implements ISlaObserver {
+    + onSlaBreached(event: SlaBreachEvent): void
+  }
+
+  class EmailAlertObserver implements ISlaObserver {
+    + onSlaBreached(event: SlaBreachEvent): void
+  }
+}
+
+' Relaciones de Asociación y Uso
+TicketController --> TicketService : invoca >
+TicketController ..> CreateTicketDTO : usa >
+TicketService --> ITicketRepository : persiste en >
+TicketService --> ISlaSubject : notifica vía >
+TicketService --> SupportLevelHandler : delega escalamiento a >
+TicketService ..> TicketFactory : delega creación a >
+
+Ticket *-- EscalationRecord : contiene historial >
+SupportLevelHandler --> SupportLevelHandler : siguiente en cadena (1..0..1) >
+SlaBreachNotifier o-- ISlaObserver : mantiene lista de observadores >
+ISlaObserver ..> SlaBreachEvent : recibe >
+
+@enduml

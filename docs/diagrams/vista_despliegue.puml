@@ -1,0 +1,36 @@
+@startuml vista_despliegue
+title Vista Física / Despliegue (Kruchten 4+1) - Topología de Ejecución
+
+skinparam nodeRoundCorner 10
+skinparam defaultFontName Arial
+skinparam defaultFontSize 11
+skinparam monochrome false
+
+node "Estación de Trabajo Cliente\n(Mesa de Ayuda / Servidor Público)" as ClientNode #E8F4F8 {
+  artifact "Cliente HTTP / REST\n(Browser / Postman / CLI)" as ClientArtifact
+}
+
+node "Servidor de Aplicación (Host On-Premise / Docker)" as AppServer #FFF2CC {
+  node "Node.js v24 LTS Runtime" as NodeRuntime {
+    component "Microservicio Service Desk\n(REST API Express / HTTP)" as MicroserviceApp #E1D5E7 {
+      port "Port 3000" as P3000
+      artifact "Presentation Layer (Controllers)" as ArtPres
+      artifact "Application Layer (Services)" as ArtApp
+      artifact "Domain Layer (GoF Patterns)" as ArtDom
+      artifact "Infrastructure Layer (Workers & Adapters)" as ArtInfra
+    }
+  }
+
+  node "Subsistema de Almacenamiento" as StorageNode #D5E8D4 {
+    database "Almacén de Tickets\n(InMemory / Persistencia Local)" as DBInstance
+  }
+}
+
+ClientArtifact --> P3000 : HTTP 1.1 / JSON (REST)\nTLS / Intranet Institucional
+P3000 --> ArtPres
+ArtPres --> ArtApp
+ArtApp --> ArtDom
+ArtDom --> ArtInfra
+ArtInfra --> DBInstance : Acceso Directo a Memoria / I/O
+
+@enduml

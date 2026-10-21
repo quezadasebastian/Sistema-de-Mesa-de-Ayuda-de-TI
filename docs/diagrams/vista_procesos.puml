@@ -1,0 +1,86 @@
+@startuml vista_procesos
+title Vista de Procesos (Kruchten 4+1) - Concurrencia y Flujo Asíncrono de SLAs
+
+skinparam monochrome false
+skinparam roundcorner 8
+skinparam defaultFontName Arial
+skinparam defaultFontSize 11
+
+box "Proceso Servidor API (Node.js Main Event Loop)" #E6F2FF
+  participant "HTTP Listener\n(Port 3000)" as HttpListener
+  participant "TicketController" as Controller
+  participant "TicketService" as Service
+end box
+
+box "Proceso Concurrente / Worker de Monitoreo" #FFF2CC
+  participant "SlaSchedulerWorker\n(Cron Job / Timer)" as SlaWorker
+end box
+
+box "Subsistema de Dominio y Patrones" #E1D5E7
+  participant "Ticket (Entity)" as TicketEntity
+  participant "SlaBreachNotifier\n<<Subject>>" as SlaSubject
+  participant "SupportLevelHandler\n<<Chain>>" as CoRChain
+end box
+
+box "Canales de Notificación Asíncronos" #D5E8D4
+  participant "ConsoleLogObserver" as LogObs
+  participant "EmailAlertObserver" as MailObs
+end box
+
+== Flujo 1: Petición Síncrona de Creación de Ticket ==
+[-> HttpListener : POST /tickets (JSON Payload)
+activate HttpListener
+HttpListener -> Controller : createTicket(dto)
+activate Controller
+Controller -> Service : createTicket(dto)
+activate Service
+note right of Service: Invoca TicketFactory\ny guarda en ITicketRepository
+Service --> Controller : Ticket Creado (con dueAt calculado)
+deactivate Service
+Controller --> HttpListener : 201 Created (JSON Response)
+deactivate Controller
+[<-- HttpListener : HTTP Response (Latencia < 200ms)
+deactivate HttpListener
+
+== Flujo 2: Monitoreo Concurrente y Escalamiento Automático de SLA ==
+loop Cada intervalo T (Worker no bloqueante)
+  SlaWorker -> Service : verifyActiveTicketsSla()
+  activate SlaWorker
+  activate Service
+  Service -> TicketEntity : isSlaBreached(relojActual)
+  activate TicketEntity
+  TicketEntity --> Service : boolean (true: SLA Expirado)
+  deactivate TicketEntity
+
+  alt SLA Expirado (Breach Detectado)
+    Service -> SlaSubject : notify(SlaBreachEvent)
+    activate SlaSubject
+    
+    par Notificación Concurrente a Observadores
+      SlaSubject -> LogObs : onSlaBreached(event)
+      activate LogObs
+      LogObs --> SlaSubject : ack
+      deactivate LogObs
+    else
+      SlaSubject -> MailObs : onSlaBreached(event)
+      activate MailObs
+      MailObs --> SlaSubject : ack
+      deactivate MailObs
+    end
+    deactivate SlaSubject
+
+    Service -> CoRChain : handle(ticket, "SLA_BREACH_TIMEOUT")
+    activate CoRChain
+    note over CoRChain: Evaluación secuencial:\nN1 -> N2 -> N3
+    CoRChain -> TicketEntity : escalate(NIVEL_2, motivo)
+    CoRChain --> Service : EscalationResult (Transición a Nivel 2)
+    deactivate CoRChain
+
+    Service -> Service : repo.update(ticket)
+  end
+  Service --> SlaWorker : Ciclo de verificación completado
+  deactivate Service
+  deactivate SlaWorker
+end
+
+@enduml

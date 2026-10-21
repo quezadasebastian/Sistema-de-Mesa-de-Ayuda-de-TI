@@ -1,0 +1,69 @@
+@startuml vista_desarrollo
+title Vista de Desarrollo (Kruchten 4+1) - Estructura de Paquetes y Módulos
+
+skinparam packageStyle rectangle
+skinparam roundcorner 8
+skinparam defaultFontName Arial
+skinparam defaultFontSize 11
+
+package "src" {
+  package "presentation" #E6F2FF {
+    class "TicketController.ts" as PC_Ctrl
+    class "CreateTicketDTO.ts" as PC_DTO
+    class "HttpServer.ts" as PC_Server
+  }
+
+  package "application" #FFF2CC {
+    class "TicketService.ts" as AP_Service
+    class "EscalationResult.ts" as AP_Result
+  }
+
+  package "domain" #E1D5E7 {
+    package "entities" {
+      class "Ticket.ts" as DM_Ticket
+      class "HardwareTicket.ts" as DM_HWTicket
+      class "SoftwareTicket.ts" as DM_SWTicket
+      class "NetworkTicket.ts" as DM_NETTicket
+      class "AccessTicket.ts" as DM_ACCTicket
+    }
+
+    package "factory" {
+      class "TicketFactory.ts" as DM_Factory
+      class "ConcreteFactories.ts" as DM_ConcreteFactories
+    }
+
+    package "chain" {
+      class "SupportLevelHandler.ts" as DM_Handler
+      class "L1SupportHandler.ts" as DM_L1
+      class "L2SupportHandler.ts" as DM_L2
+      class "L3SupportHandler.ts" as DM_L3
+    }
+
+    package "observer" {
+      interface "ISlaObserver.ts" as DM_IObs
+      interface "ISlaSubject.ts" as DM_ISub
+      class "SlaBreachNotifier.ts" as DM_Notifier
+      class "SlaBreachEvent.ts" as DM_Event
+    }
+
+    package "repositories" {
+      interface "ITicketRepository.ts" as DM_IRepo
+    }
+  }
+
+  package "infrastructure" #D5E8D4 {
+    class "InMemoryTicketRepository.ts" as INF_Repo
+    class "ConsoleLogObserver.ts" as INF_LogObs
+    class "EmailAlertObserver.ts" as INF_MailObs
+    class "SlaSchedulerWorker.ts" as INF_Worker
+  }
+}
+
+' Dependencias de capas (Arquitectura Limpia / Inversión de Dependencias)
+presentation ..> application : usa
+application ..> domain : usa
+infrastructure ..|> domain : implementa interfaces
+infrastructure ..> application : provee dependencias
+presentation ..> domain : referencia tipos
+
+@enduml

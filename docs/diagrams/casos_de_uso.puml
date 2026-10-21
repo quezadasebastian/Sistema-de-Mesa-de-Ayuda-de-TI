@@ -1,0 +1,49 @@
+@startuml casos_de_uso
+title Modelo de Casos de Uso (UML 2.5.1) - Sistema de Mesa de Ayuda de TI
+
+left to right direction
+skinparam packageStyle rectangle
+skinparam roundcorner 8
+skinparam defaultFontName Arial
+skinparam defaultFontSize 12
+
+actor "Usuario Solicitante\n(Servidor Público)" as Solicitante
+actor "Agente N1\n(Mesa de Ayuda)" as AgenteN1
+actor "Agente N2\n(Soporte de Campo)" as AgenteN2
+actor "Agente N3\n(Especialista TI)" as AgenteN3
+actor "Motor de Monitoreo SLA\n<<Sistema>>" as MotorSLA
+
+rectangle "Sistema de Mesa de Ayuda (Service Desk)" {
+  usecase "CU-01: Registrar Incidencia de TI" as CU01
+  usecase "CU-02: Escalar Incidencia por Vencimiento de SLA\n<<Crítico / Vertical Slice>>" as CU02 #LightYellow
+  usecase "CU-03: Calcular Fecha Límite de SLA" as CU03
+  usecase "CU-04: Monitorear Vencimiento de Tickets" as CU04
+  usecase "CU-05: Emitir Notificación de Alerta de SLA" as CU05
+  usecase "CU-06: Atender y Resolver Incidencia" as CU06
+  usecase "CU-07: Consultar Estado y Trazabilidad" as CU07
+}
+
+' Relaciones de Asociación
+Solicitante --> CU01
+Solicitante --> CU07
+
+AgenteN1 --> CU01
+AgenteN1 --> CU06
+AgenteN1 --> CU07
+
+AgenteN2 --> CU06
+AgenteN2 --> CU07
+
+AgenteN3 --> CU06
+AgenteN3 --> CU07
+
+MotorSLA --> CU04
+MotorSLA --> CU02
+
+' Relaciones de Inclusión y Extensión (UML 2.5.1)
+CU01 .> CU03 : <<include>>
+CU04 .> CU02 : <<include>>
+CU02 .> CU05 : <<include>>
+CU06 .> CU02 : <<extend>> \n (Por complejidad no resuelta)
+
+@enduml

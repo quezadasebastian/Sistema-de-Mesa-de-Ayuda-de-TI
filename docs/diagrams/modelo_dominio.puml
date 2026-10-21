@@ -1,0 +1,127 @@
+@startuml modelo_dominio
+title Modelo Conceptual de Dominio - Sistema de Mesa de Ayuda de TI (Service Desk)
+
+skinparam classAttributeIconSize 0
+skinparam monochrome false
+skinparam roundcorner 8
+skinparam defaultFontName Arial
+skinparam defaultFontSize 12
+skinparam classBackgroundColor #FEFECE
+skinparam classBorderColor #B85450
+
+class Usuario {
+  - id: String
+  - nombreCompleto: String
+  - correoInstitucional: String
+  - cargo: String
+  - dependencia: String
+}
+
+class Incidencia {
+  - id: String
+  - codigoTicket: String
+  - titulo: String
+  - descripcion: String
+  - categoria: CategoriaIncidencia
+  - fechaRegistro: DateTime
+  - estado: EstadoTicket
+}
+
+enum CategoriaIncidencia {
+  HARDWARE
+  SOFTWARE
+  REDES
+  ACCESOS
+}
+
+enum EstadoTicket {
+  ABIERTO
+  EN_PROCESO
+  ESCALADO
+  RESUELTO
+  CERRADO
+}
+
+class Prioridad {
+  - nivel: NivelPrioridad
+  - impacto: NivelImpacto
+  - urgencia: NivelUrgencia
+}
+
+enum NivelPrioridad {
+  P1_CRITICA
+  P2_ALTA
+  P3_MEDIA
+  P4_BAJA
+}
+
+enum NivelImpacto {
+  ALTO
+  MEDIO
+  BAJO
+}
+
+enum NivelUrgencia {
+  ALTA
+  MEDIA
+  BAJA
+}
+
+class SLA {
+  - tiempoMaximoRespuesta: Number
+  - tiempoMaximoResolucion: Number
+  - fechaVencimiento: DateTime
+  - porcentajeAlerta: Number
+  - estaVencido: Boolean
+}
+
+class NivelSoporte {
+  - codigo: CodigoNivel
+  - nombre: String
+  - descripcionCompetencia: String
+}
+
+enum CodigoNivel {
+  NIVEL_1
+  NIVEL_2
+  NIVEL_3
+}
+
+class AgenteSoporte {
+  - id: String
+  - nombreCompleto: String
+  - correo: String
+  - activo: Boolean
+}
+
+class RegistroEscalamiento {
+  - id: String
+  - fechaHora: DateTime
+  - motivoEscalamiento: String
+  - nivelOrigen: CodigoNivel
+  - nivelDestino: CodigoNivel
+}
+
+class AlertaSLA {
+  - id: String
+  - fechaEmision: DateTime
+  - tipoAlerta: TipoAlertaSLA
+  - mensajeNotificacion: String
+}
+
+enum TipoAlertaSLA {
+  PROXIMIDAD_VENCIMIENTO
+  INFRACCION_TOTAL
+}
+
+' Relaciones y multiplicidades del Dominio
+Usuario "1" -- "0..*" Incidencia : reporta >
+Incidencia "1" *-- "1" Prioridad : posee >
+Incidencia "1" *-- "1" SLA : gobernada por >
+Incidencia "1" -- "1" NivelSoporte : asignada a >
+NivelSoporte "1" -- "0..*" AgenteSoporte : conformado por >
+Incidencia "1" *-- "0..*" RegistroEscalamiento : registra historial >
+SLA "1" -- "0..*" AlertaSLA : dispara >
+RegistroEscalamiento "0..*" -- "1" NivelSoporte : transfiere a >
+
+@enduml
